@@ -1,10 +1,15 @@
 game ping test	PING	game.42sp.org.br	60
-wiki	HTTP	http://en.wikipedia.org/wiki/Main_Page	GET	200	5
-face	HTTP	http://www.facebook.com/	GET	200	3
-google	HTTP	google.com	GET	200	2
-born_php	HTTP	192.168.10.12/info.php	GET	200	50
-lighttpd	HTTP	192.168.10.12/	GET	200	30
-dns test	DNS	google.com	120	8.8.8.8
+wiki	HTTP	https://en.wikipedia.org/wiki/Main_Page	GET	200	5
+face	HTTP	https://www.facebook.com/	GET	200	3
+google1	HTTP	google.com	GET	302	2
+google2	HTTP	google.com	POST	411	2
+google3	HTTP	google.com	HEAD	301	3
+google4	HTTP	google.com	PUT	411	4
+google5	HTTP	google.com	DELETE	405	4
+google6	HTTP	google.com	PATCH	405	4
+dns test	DNS	google.com	1	8.8.8.8
 google ping	PING	google.com	50
-face dns	DNS	facebook.com	120	8.8.4.4
-intra	HTTP	http://intra.42.fr/	GET	200	1
+face	DNS	facebook.com	3	8.8.8.8
+fail	DNS	foogoogle.com	2	8.8.8.8
+fail2	DNS	google.com	2	8.8.8.1
+intra	HTTP	https://intra.42.fr/	GET	302	5

@@ -30,7 +30,6 @@ int	main()
 	char	header[2048] = "HTTP/1.1 200 OK\r\n\n";
 	strcat(header, response);
 
-	// Socket
 	int		server_sck = socket(AF_INET, SOCK_STREAM, 0);
 	struct	sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;

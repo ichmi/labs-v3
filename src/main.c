@@ -57,7 +57,7 @@ typedef struct s_dns
 	char	*domain;
 }		t_dns;
 
-typedef struct s_resp
+typedef struct s_http_resp
 {
 	char	*status_code_response;
 	char	**token;
@@ -67,6 +67,13 @@ typedef struct s_resp
 	char	*content_length;
 	char	*server;
 }		t_http_resp;
+
+typedef struct s_dns_resp
+{
+	char	*ipv4;
+	char	*ipv6;
+	int		resolved;
+}		t_dns_resp;
 
 typedef struct s_dt
 {
@@ -91,9 +98,9 @@ typedef struct s_data
 	t_ping	**ping_obj;
 	t_dns	**dns_obj;
 	t_http_resp	http_resp;
+	t_dns_resp	dns_resp;
 	t_dt	datetime;
 
-	double	req_time;
 	int		n_mon;
 	int		n_http;
 	int		n_ping;
@@ -105,12 +112,20 @@ static void	__init_data(t_data *data)
 {
 	data->f_simplify = 0;
 	data->n_mon = 0;
+
 	data->n_http = 0;
 	data->http_i = 0;
+	data->http_resp.content_type = NULL;
+	data->http_resp.server = NULL;
+
 	data->n_ping = 0;
 	data->ping_i = 0;
+
 	data->n_dns = 0;
 	data->dns_i = 0;
+	data->dns_resp.resolved = 0;
+	data->dns_resp.ipv4 = NULL;
+	data->dns_resp.ipv6 = NULL;
 }
 void	init_data(t_data *data)
 {
@@ -147,62 +162,6 @@ void	init_data(t_data *data)
 	data->http_obj = (t_http **)malloc(data->n_http * sizeof(*data->http_obj));
 	data->ping_obj = (t_ping **)malloc(data->n_ping * sizeof(*data->ping_obj));
 	data->dns_obj = (t_dns **)malloc(data->n_dns * sizeof(*data->dns_obj));
-}
-//////
-
-// utils
-void	display_tab(t_data data)
-{
-	printf("\x1b[38;5;9m=========== HTTP\x1b[0m\n");
-	printf("char *https[%d] = {\n", data.n_http);
-	for (int i = 0; data.http_objs[i]; ++i) {
-		printf("\t\"%s\",\n", data.http_objs[i]);
-	}
-	printf("\tNULL\n};\n");
-
-	printf("\n\x1b[38;5;9m=========== PING\x1b[0m\n");
-	printf("char *pings[%d] = {\n", data.n_ping);
-	for (int i = 0; data.ping_objs[i]; ++i) {
-		printf("\t\"%s\",\n", data.ping_objs[i]);
-	}
-	printf("\tNULL\n};\n");
-
-	printf("\n\x1b[38;5;9m=========== DNS\x1b[0m\n");
-	printf("char *dns[%d] = {\n", data.n_dns);
-	for (int i = 0; data.dns_objs[i]; ++i) {
-		printf("\t\"%s\",\n", data.dns_objs[i]);
-	}
-	printf("\tNULL\n};\n");
-}
-void	display_objects(t_data data)
-{
-	printf("\x1b[38;5;9m=========== HTTP\x1b[0m\n");
-	for (int i = 0; data.http_obj[i]; ++i) {
-		printf("http(%s, %s, %s, %s, %d, %d)\n",
-			data.http_obj[i]->mon->name,
-			data.http_obj[i]->mon->prot,
-			data.http_obj[i]->mon->addr,
-			data.http_obj[i]->method,
-			data.http_obj[i]->expected_status_code,
-			data.http_obj[i]->interval);
-	}
-	printf("\n\x1b[38;5;9m=========== PING\x1b[0m\n");
-	for (int i = 0; data.ping_obj[i]; ++i) {
-		printf("ping(%s, %s, %s, %d)\n",
-			data.ping_obj[i]->mon->name,
-			data.ping_obj[i]->mon->prot,
-			data.ping_obj[i]->mon->addr,
-			data.ping_obj[i]->interval);
-	}
-	printf("\n\x1b[38;5;9m=========== DNS\x1b[0m\n");
-	for (int i = 0; data.dns_obj[i]; ++i) {
-		printf("dns(%s, %s, %s, %d, %s)\n",
-			data.dns_obj[i]->mon->name,
-			data.dns_obj[i]->mon->prot,
-			data.dns_obj[i]->mon->addr,
-			data.dns_obj[i]->interval,
-			data.dns_obj[i]->domain);
-	}
 }
 
 void	init_queries(t_data *data)
@@ -302,33 +261,27 @@ void	init_mon_objs(t_data *data)
 	}
 }
 
-void	exec_curl(int i, int *pfd, t_data *data)
+void	__curl(int i, int *pfd, t_data *data)
 {
 	char	*addr;
+	char	*method;
 
 	sleep(data->http_obj[i]->interval);
 	addr = ft_strtrim(data->http_obj[i]->mon->addr, " \n\t");
 	close(pfd[0]);
 	dup2(pfd[1], STDOUT_FILENO);
 	fflush(stdout);
-	execlp("curl", "curl", "-Is", addr);
-	perror("CANT FIND PATH");
-	exit(1);
+	method = data->http_obj[i]->method;
+	execlp("curl", "curl", "-IsX", method, addr, NULL);
 }
 
 void	exec_child(int i, int *pfd, t_data *data)
 {
-	clock_t	start;
-	clock_t	end;
 	int		pid;
 
 	pid = fork();
-	start = clock();
-	if (pid == 0)
-		exec_curl(i, pfd, data);
-	wait(NULL);
-	end = clock();
-	data->req_time = (double)(end - start) / CLOCKS_PER_SEC;
+	if (!pid)
+		__curl(i, pfd, data);
 }
 
 int	is_present(char *line, const char *param)
@@ -410,7 +363,7 @@ void	set_datetime(t_data *data)
 	free(str);
 }
 
-void	simplified_log(int i, t_data *data)
+void	clean_http_log(int i, t_data *data)
 {
 	char	*hour;
 	char	*name;
@@ -435,7 +388,7 @@ void	simplified_log(int i, t_data *data)
 	close(fd);
 }
 
-void	log_all(int i, t_data *data)
+void	http_log(int i, t_data *data)
 {
 	char	buff[9];
 	int		fd;
@@ -463,10 +416,10 @@ void	log_all(int i, t_data *data)
 	ft_putstr_fd(" ", fd);
 	ft_putstr_fd(data->http_obj[i]->mon->addr, fd);
 	ft_putstr_fd(" ", fd);
-	snprintf(buff, 9, "%f", data->req_time);
-	ft_putstr_fd(buff, fd);
-	ft_putstr_fd(" ", fd);
-	ft_putstr_fd(data->http_resp.content_type, fd);
+	if (data->http_resp.content_type)
+		ft_putstr_fd(data->http_resp.content_type, fd);
+	else
+		ft_putstr_fd("-", fd);
 	ft_putstr_fd(" ", fd);
 	if (data->http_resp.server)
 		ft_putstr_fd(data->http_resp.server, fd);
@@ -475,7 +428,39 @@ void	log_all(int i, t_data *data)
 	close(fd);
 }
 
-void	display(int i, t_data *data)
+void	disc_message(int i, t_data *data)
+{
+	int		pid;
+	int		pfd[2];
+	char	*args[12];
+	char	*msg;
+
+	msg = ft_strdup("{\"content\": \"ERROR (**");
+	msg = ft_strjoins(msg, data->http_obj[i]->mon->name);
+	msg = ft_strjoins(msg, "**)\"}");
+	args[0] = "curl";
+	args[1] = "-s";
+	args[2] = "-X";
+	args[3] = "POST";
+	args[4] = "-H";
+	args[5] = "Content-Type: application/json";
+	args[6] = "-H";
+	args[7] = "authorization: MTAwNDE0MjA0NDk0OTc5NDk3Nw.GrGrqK.2kAr9sM0esgCbKhwMOTdyuKIniMcQKGRokJV08",
+	args[8] = "-d";
+	args[9] = msg;
+	args[10] = "https://discord.com/api/v9/channels/1004143274874900561/messages";
+	args[11] = NULL;
+	pid = fork();
+	if (!pid)
+	{
+		pipe(pfd);
+		close(pfd[0]);
+		dup2(pfd[1], STDOUT_FILENO);
+		dup2(pfd[1], STDERR_FILENO);
+		execvp("curl", args);
+	}
+}
+void	echo_http(int i, t_data *data)
 {
 	char	*hour;
 	char	*name;
@@ -493,11 +478,14 @@ void	display(int i, t_data *data)
 	if (code == expected_code)
 		printf("\x1b[38;5;10m%d\x1b[0m ", code);
 	else
+	{
 		printf("\x1b[38;5;9m%d\x1b[0m ", code);
+		disc_message(i, data);
+	}
 	printf("%s\n", addr);
 }
 
-void	exec(t_data data, int i)
+void	monitore_http(t_data data, int i)
 {
 	int	pfd[2];
 	int	pid;
@@ -505,19 +493,18 @@ void	exec(t_data data, int i)
 	while (1)
 	{
 		char	*line;
+		int		wstatus;
 
 		pipe(pfd);
 		exec_child(i, pfd, &data);
+		wait(&wstatus);
 		close(pfd[1]);
-
-		// Separacao do status code:   HTTP/1.1 200 OK  ->  http_resp("HTTP/1.1", 200, "OK")
+		// HTTP/1.1 200 OK  ->  http_resp("HTTP/1.1", 200, "OK")
 		data.http_resp.status_code_response = ft_gnl(pfd[0]);
 		data.http_resp.token = ft_split(data.http_resp.status_code_response, ' ');
 		data.http_resp.prot = data.http_resp.token[0];
 		data.http_resp.code = ft_atoi(data.http_resp.token[1]);
 
-		data.http_resp.content_type = NULL;
-		data.http_resp.server = NULL;
 		line = ft_gnl(pfd[0]);
 		while (line)
 		{
@@ -530,11 +517,193 @@ void	exec(t_data data, int i)
 		}
 		set_datetime(&data);
 		if (data.f_simplify)
-			simplified_log(i, &data);
+			clean_http_log(i, &data);
 		else
-			log_all(i, &data);
-		display(i, &data);
+			http_log(i, &data);
+		echo_http(i, &data);
 		close(pfd[0]);
+	}
+}
+void	echo_dns(int i, t_data *data, int fail)
+{
+	char	*hour;
+	char	*name;
+	char	*addr;
+
+	hour = data->datetime.fhour;
+	name = data->dns_obj[i]->mon->name;
+	addr = data->dns_obj[i]->mon->addr;
+	printf("%s ", hour);
+	printf("\x1b[38;5;8m%s\x1b[0m ", name);
+	if (!fail)
+		printf("%s \x1b[38;5;10m%s\x1b[0m\n", addr, "RESOLVED");
+	else
+		printf("%s \x1b[38;5;9m%s\x1b[0m\n", addr, "FAILED");
+}
+void	dns_log(int i, t_data *data, int fail)
+{
+	char	buff[9];
+	int		fd;
+	char	*name;
+	char	*addr;
+	char	*server;
+
+	name = data->dns_obj[i]->mon->name;
+	addr = data->dns_obj[i]->mon->addr;
+	server = data->dns_obj[i]->domain;
+	fd = open("monitoring.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+	ft_putstr_fd(data->datetime.day_week, fd);
+	ft_putstr_fd(" ", fd);
+	ft_putstr_fd(data->datetime.day, fd);
+	ft_putstr_fd("-", fd);
+	ft_putstr_fd(data->datetime.month, fd);
+	ft_putstr_fd("-", fd);
+	ft_putstr_fd(data->datetime.year + 2, fd);
+	ft_putstr_fd(" ", fd);
+	ft_putstr_fd(data->datetime.hour, fd);
+	ft_putstr_fd(" ", fd);
+
+	ft_putstr_fd(name, fd);
+	ft_putstr_fd(" ", fd);
+	ft_putstr_fd(addr, fd);
+	if (!fail)
+	{
+		ft_putstr_fd(" OK ", fd);
+		ft_putstr_fd(data->dns_resp.ipv4, fd);
+		ft_putstr_fd(" ", fd);
+		if (data->dns_resp.ipv6)
+			ft_putstr_fd(data->dns_resp.ipv6, fd);
+		else
+			ft_putstr_fd("-", fd);
+		ft_putstr_fd("\n", fd);
+	}
+	else
+	{
+		ft_putstr_fd(" FAIL ", fd);
+		ft_putstr_fd("(Host ", fd);
+		ft_putstr_fd(addr, fd);
+		ft_putstr_fd(" not found in server ", fd);
+		ft_putstr_fd(server, fd);
+		ft_putendl_fd(":53)", fd);
+	}
+	close(fd);
+}
+void	clean_dns_log(int i, t_data *data, int fail)
+{
+	char	*hour;
+	char	*name;
+	char	*addr;
+	char	*ipv4;
+	char	*ipv6;
+	int		fd;
+
+	hour = data->datetime.hour;
+	name = data->dns_obj[i]->mon->name;
+	addr = data->dns_obj[i]->mon->addr;
+	ipv4 = data->dns_resp.ipv4;
+	ipv6 = data->dns_resp.ipv6;
+	fd = open("monitoring.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+	ft_putstr_fd(hour, fd);
+	ft_putstr_fd(" ", fd);
+	ft_putstr_fd(name, fd);
+	ft_putstr_fd(" ", fd);
+	ft_putstr_fd(addr, fd);
+	if (!fail)
+		ft_putendl_fd(" OK", fd);
+	else
+		ft_putendl_fd(" FAIL", fd);
+	close(fd);
+}
+char	*get_ip(char *line)
+{
+	char	*buff;
+	char	*ip;
+
+	buff = ft_strnstr(line, "address", ft_strlen(line));
+	ip = ft_strtrim(buff + 8, " \n\t");
+	return (ip);
+}
+int	dns_is_present(char *line, const char *param)
+{
+	if (!ft_strncmp(param, "has address", ft_strlen(param)))
+		if (ft_strnstr(line, "has address", ft_strlen(line)))
+			return (1);
+	if (!ft_strncmp(param, "has IPv6", ft_strlen(param)))
+		if (ft_strnstr(line, "has IPv6", ft_strlen(line)))
+			return (1);
+	return (0);
+}
+void	__host(int i, int *pfd, t_data *data)
+{
+	char	*addr;
+	char	*server;
+
+	sleep(data->dns_obj[i]->interval);
+	addr = ft_strtrim(data->dns_obj[i]->mon->addr, " \n\t");
+	server = ft_strtrim(data->dns_obj[i]->domain, " \n\t");
+	close(pfd[0]);
+	dup2(pfd[1], STDOUT_FILENO);
+	fflush(stdout);
+	execlp("host", "host", addr, server);
+}
+void	dns_exec_child(int i, int *pfd, t_data *data)
+{
+	int		pid;
+
+	pid = fork();
+	if (pid == 0)
+		__host(i, pfd, data);
+}
+void	monitore_dns(t_data data, int i)
+{
+	int	pfd[2];
+	int	pid;
+
+	while (1)
+	{
+		char	*line;
+		int		wstatus;
+
+		pipe(pfd);
+		dns_exec_child(i, pfd, &data);
+		wait(&wstatus);
+		close(pfd[1]);
+		if (WIFEXITED(wstatus))
+		{
+			if (WEXITSTATUS(wstatus) != 0)
+			{
+				set_datetime(&data);
+				if (data.f_simplify)
+					clean_dns_log(i, &data, 1);
+				else
+					dns_log(i, &data, 1);
+				echo_dns(i, &data, 1);
+				close(pfd[0]);
+			}
+			else
+			{
+				line = ft_gnl(pfd[0]);
+				while (line)
+				{
+					if (dns_is_present(line, "has address"))
+					{
+						data.dns_resp.ipv4 = get_ip(line);
+						data.dns_resp.resolved = 1;
+					}
+					if (dns_is_present(line, "has IPv6"))
+						data.dns_resp.ipv6 = get_ip(line);
+					free(line);
+					line = ft_gnl(pfd[0]);
+				}
+				set_datetime(&data);
+				if (data.f_simplify)
+					clean_dns_log(i, &data, 0);
+				else
+					dns_log(i, &data, 0);
+				echo_dns(i, &data, 0);
+				close(pfd[0]);
+			}
+		}
 	}
 }
 
@@ -552,15 +721,24 @@ int	main(int ac, char **av)
 
 
 	int		pid[data.n_http];
-
 	i = -1;
 	while (++i < data.n_http)
 	{
 		pid[i] = fork();
 		if (pid[i] == 0)
-			exec(data, i);
+			monitore_http(data, i);
 	}
 	wait(NULL);
+
+	// int		pid[data.n_dns];
+	// i = -1;
+	// while (++i < data.n_dns)
+	// {
+	// 	pid[i] = fork();
+	// 	if (pid[i] == 0)
+	// 		monitore_dns(data, i);
+	// }
+	// wait(NULL);
 	
 
 
