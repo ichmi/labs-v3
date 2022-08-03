@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   dns.c                                              :+:      :+:    :+:   */
+/*   ping.c                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: frosa-ma <frosa-ma@student.42sp.org.br>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2022/08/02 20:35:36 by frosa-ma          #+#    #+#             */
-/*   Updated: 2022/08/03 07:22:17 by frosa-ma         ###   ########.fr       */
+/*   Created: 2022/08/03 07:21:25 by frosa-ma          #+#    #+#             */
+/*   Updated: 2022/08/03 15:52:08 by frosa-ma         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,18 +22,16 @@ static char	*get_ip(char *line)
 	return (ip);
 }
 
-static void	query_dns(int i, int *pfd, t_data *data)
+static void	send_icmp(int i, int *pfd, t_data *data)
 {
 	char	*addr;
-	char	*server;
 
-	sleep(data->dns_obj[i]->interval);
-	addr = ft_strtrim(data->dns_obj[i]->mon->addr, " \n\t");
-	server = ft_strtrim(data->dns_obj[i]->domain, " \n\t");
+	sleep(data->ping_obj[i]->interval);
+	addr = ft_strtrim(data->ping_obj[i]->mon->addr, " \n\t");
 	close(pfd[0]);
 	dup2(pfd[1], STDOUT_FILENO);
 	fflush(stdout);
-	execlp("host", "host", addr, server);
+	execlp("ping", "ping", "-c", "1", addr, NULL);
 }
 
 static void	exec_child(int i, int *pfd, t_data *data)
@@ -42,10 +40,10 @@ static void	exec_child(int i, int *pfd, t_data *data)
 
 	pid = fork();
 	if (pid == 0)
-		query_dns(i, pfd, data);
+		send_icmp(i, pfd, data);
 }
 
-void	monitore_dns(t_data data, int i)
+void	monitore_ping(t_data data, int i)
 {
 	int	pfd[2];
 	int	pid;
@@ -65,10 +63,10 @@ void	monitore_dns(t_data data, int i)
 			{
 				set_datetime(&data);
 				if (data.f_simplify)
-					clean_dns_log(i, &data, 1);
+					clean_ping_log(i, &data, 1);
 				else
-					dns_log(i, &data, 1);
-				echo_dns(i, &data, 1);
+					ping_log(i, &data, 1);
+				echo_ping(i, &data, 1);
 				close(pfd[0]);
 			}
 			else
@@ -76,22 +74,33 @@ void	monitore_dns(t_data data, int i)
 				line = ft_gnl(pfd[0]);
 				while (line)
 				{
-					if (is_present(line, "has address"))
+					if (!ft_strncmp(line, "PING", 4))
 					{
-						data.dns_resp.ipv4 = get_ip(line);
-						data.dns_resp.resolved = 1;
+						char *temp = ft_strchr(line, '(');
+						int size = 0;
+						int	i = -1;
+						while (temp[++i])
+						{
+							if (temp[i] == ')')
+								break ;
+							size++;
+						}
+						data.ping_resp.ipv4 = ft_substr(temp, 1, size - 1);
 					}
-					if (is_present(line, "has IPv6"))
-						data.dns_resp.ipv6 = get_ip(line);
+					if (!ft_strncmp(line, "64 bytes from", ft_strlen("64 bytes from")))
+					{
+						char *second = ft_strnstr(line, "time=", ft_strlen(line));
+						data.ping_resp.rtt = ft_atoi(second + 5);
+					}
 					free(line);
 					line = ft_gnl(pfd[0]);
 				}
 				set_datetime(&data);
 				if (data.f_simplify)
-					clean_dns_log(i, &data, 0);
+					clean_ping_log(i, &data, 0);
 				else
-					dns_log(i, &data, 0);
-				echo_dns(i, &data, 0);
+					ping_log(i, &data, 0);
+				echo_ping(i, &data, 0);
 				close(pfd[0]);
 			}
 		}

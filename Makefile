@@ -6,7 +6,7 @@
 #    By: frosa-ma <frosa-ma@student.42sp.org.br>    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2022/07/27 18:49:22 by frosa-ma          #+#    #+#              #
-#    Updated: 2022/08/02 21:13:21 by frosa-ma         ###   ########.fr        #
+#    Updated: 2022/08/03 07:24:37 by frosa-ma         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -17,7 +17,7 @@ CC		= clang
 CFLAGS	= -Wall -Wextra -Werror
 FT		= libft.a
 
-SRCS	= main.c constructors.c dns.c echo.c http.c init.c log.c utils.c
+SRCS	= main.c constructors.c dns.c echo.c http.c init.c log.c ping.c utils.c
 OBJSDIR	= obj
 OBJS	= $(addprefix ${OBJSDIR}/, ${SRCS:%.c=%.o})
 

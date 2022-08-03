@@ -7,9 +7,9 @@ google put	HTTP	google.com	PUT	411	6
 google delete	HTTP	google.com	DELETE	405	7
 google patch	HTTP	google.com	PATCH	405	8
 intra	HTTP	https://intra.42.fr/	GET	302	9
-google ping	PING	google.com	50
-game ping test	PING	game.42sp.org.br	60
+ping	PING	google.com	1
+ping	PING	facebook.com	2
 face	DNS	facebook.com	1	8.8.8.8
-google	DNS	google.com	2	8.8.8.8
+google	DNS	google.com	1	8.8.8.8
 foogoogle	DNS	foogoogle.com	3	8.8.8.8
 invalid server	DNS	google.com	4	8.8.8.1

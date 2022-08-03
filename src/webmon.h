@@ -6,7 +6,7 @@
 /*   By: frosa-ma <frosa-ma@student.42sp.org.br>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/02 20:51:31 by frosa-ma          #+#    #+#             */
-/*   Updated: 2022/08/02 22:37:49 by frosa-ma         ###   ########.fr       */
+/*   Updated: 2022/08/03 14:47:46 by frosa-ma         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -78,6 +78,12 @@ typedef struct s_dns_resp
 	int		resolved;
 }		t_dns_resp;
 
+typedef struct s_ping_resp
+{
+	char	*ipv4;
+	int		rtt;
+}		t_ping_resp;
+
 typedef struct s_dt
 {
 		char	*day_week;
@@ -100,6 +106,7 @@ typedef struct s_data
 	char		**ping_list;
 	int			n_ping;
 	int			ping_i;
+	t_ping_resp	ping_resp;
 
 	t_dns_resp	dns_resp;
 	t_dns		**dns_obj;
@@ -120,9 +127,7 @@ void	tokenize_objs(t_data *data);
 
 // http
 void	monitore_http(t_data data, int i);
-void	monitore_dns(t_data data, int i);
-
-// dns
+void	monitore_ping(t_data data, int i);
 void	monitore_dns(t_data data, int i);
 
 // utils
@@ -136,9 +141,12 @@ void	http_log(int i, t_data *data);
 void	clean_http_log(int i, t_data *data);
 void	dns_log(int i, t_data *data, int fail);
 void	clean_dns_log(int i, t_data *data, int fail);
+void	ping_log(int i, t_data *data, int fail);
+void	clean_ping_log(int i, t_data *data, int fail);
 
 // echo
 void	echo_http(int i, t_data *data);
 void	echo_dns(int i, t_data *data, int fail);
+void	echo_ping(int i, t_data *data, int fail);
 
 #endif

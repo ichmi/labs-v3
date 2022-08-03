@@ -6,7 +6,7 @@
 /*   By: frosa-ma <frosa-ma@student.42sp.org.br>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/02 21:03:11 by frosa-ma          #+#    #+#             */
-/*   Updated: 2022/08/02 23:12:54 by frosa-ma         ###   ########.fr       */
+/*   Updated: 2022/08/03 15:52:39 by frosa-ma         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -177,5 +177,64 @@ void	clean_dns_log(int i, t_data *data, int fail)
 		ft_putendl_fd(" OK", fd);
 	else
 		ft_putendl_fd(" FAIL", fd);
+	close(fd);
+}
+
+void	ping_log(int i, t_data *data, int fail)
+{
+	char	*hour;
+	char	*id;
+	char	*addr;
+	char	*ipv4;
+	int		rtt;
+	int		fd;
+
+	hour = data->datetime.hour;
+	id = data->ping_obj[i]->mon->name;
+	addr = data->ping_obj[i]->mon->addr;
+	ipv4 = data->ping_resp.ipv4;
+	rtt = data->ping_resp.rtt;
+
+	fd = open("monitoring.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+	wr_common_info(i, fd, data);
+	ft_putstr_fd(id, fd);
+	ft_putstr_fd(" ", fd);
+	ft_putstr_fd(ipv4, fd);
+	if (!fail)
+	{
+		ft_putstr_fd(" OK ", fd);
+		ft_putstr_fd(ipv4, fd);
+		ft_putstr_fd(" ", fd);
+		ft_putnbr_fd(rtt, fd);
+		ft_putstr_fd("\n", fd);
+	}
+	else
+	{
+		ft_putendl_fd(" ICMP FAILED", fd);
+		dns_disc_message(i, data);
+	}
+	close(fd);
+}
+
+void	clean_ping_log(int i, t_data *data, int fail)
+{
+	char	*hour;
+	char	*name;
+	char	*addr;
+	int		fd;
+
+	hour = data->datetime.hour;
+	name = data->ping_obj[i]->mon->name;
+	addr = data->ping_obj[i]->mon->addr;
+	fd = open("monitoring.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+	ft_putstr_fd(hour, fd);
+	ft_putstr_fd(" ", fd);
+	ft_putstr_fd(name, fd);
+	ft_putstr_fd(" ", fd);
+	ft_putstr_fd(addr, fd);
+	if (!fail)
+		ft_putendl_fd(" ICMP OK", fd);
+	else
+		ft_putendl_fd(" ICMP FAILED", fd);
 	close(fd);
 }
