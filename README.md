@@ -1,1 +1,2 @@
 # labs-v3
+curl -s -iX POST -H "Content-Type: application/json" -H "authorization: MTAwNDE0MjA0NDk0OTc5NDk3Nw.GrGrqK.2kAr9sM0esgCbKhwMOTdyuKIniMcQKGRokJV08" -d '{"content": "test"}' https://discord.com/api/v9/channels/1004143274874900561/messages
